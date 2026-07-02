@@ -1,0 +1,10 @@
+[build]
+  base = "client"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+# SPA fallback - ensure all routes serve index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
