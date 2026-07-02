@@ -1,0 +1,119 @@
+@import "tailwindcss";
+@import "@mysten/dapp-kit/dist/index.css";
+
+@theme {
+  --font-sans: "Epilogue", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Colors defined from Synapse palette */
+  --color-primary: #646030;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ebe5a9;
+  --color-on-primary-container: #1e1d00;
+  
+  --color-secondary: #616043;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #e8e4c0;
+  --color-on-secondary-container: #1d1d06;
+  
+  --color-tertiary: #416652;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #c3ecd3;
+  --color-on-tertiary-container: #002113;
+  
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  
+  --color-background: #fcf9f0;
+  --color-on-background: #1c1c14;
+  
+  --color-surface: #fcf9f0;
+  --color-on-surface: #1c1c14;
+  --color-surface-variant: #e6e3d1;
+  --color-on-surface-variant: #48473a;
+  
+  --color-outline: #797869;
+  --color-outline-variant: #c9c7b6;
+
+  --color-surface-dim: #f3efe0; /* Used for sidebar and cards */
+}
+
+/* Base styles for global look */
+@layer base {
+  body {
+    @apply bg-background text-on-background font-sans antialiased;
+  }
+
+  input,
+  textarea,
+  select {
+    color: #1c1c14;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #797869;
+    opacity: 1;
+  }
+}
+
+.bg-surface,
+.bg-surface-dim,
+.bg-background {
+  color: #1c1c14;
+}
+
+/* Hide scrollbars but keep functionality for panels */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.synapse-wallet-button [data-dapp-kit] button {
+  border-radius: 8px;
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  min-height: 38px;
+  font-family: inherit;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.synapse-wallet-button [data-dapp-kit] button:hover {
+  background: color-mix(in srgb, var(--color-primary) 90%, #000);
+}
+
+/* Toast animations */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+.animate-slide-out {
+  animation: slide-out 0.3s ease-in forwards;
+}
