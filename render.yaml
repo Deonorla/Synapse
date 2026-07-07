@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: synapse-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm run dev
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: PORT
+        value: 3002
+      - key: SUI_NETWORK
+        value: testnet
+      - key: SUI_PRIVATE_KEY
+        sync: false
+      - key: AGENT_WALLET_ENCRYPTION_KEY
+        sync: false
+      - key: WALRUS_PUBLISHER_URL
+        value: https://publisher.walrus-testnet.walrus.space
+      - key: WALRUS_AGGREGATOR_URL
+        value: https://aggregator.walrus-testnet.walrus.space
+      - key: MEMWAL_PRIVATE_KEY
+        sync: false
+      - key: MEMWAL_ACCOUNT_ID
+        sync: false
+      - key: MEMWAL_SERVER_URL
+        value: https://relayer.memwal.ai
+      - key: SYNAPSE_PACKAGE_ID
+        sync: false
+      - key: SEAL_PACKAGE_ID
+        sync: false
+      - key: SEAL_KEY_SERVER_1
+        sync: false
+      - key: SEAL_KEY_SERVER_2
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_GENERATIVE_AI_API_KEY
+        sync: false
+      - key: STORAGE_DRIVER
+        value: walrus
+      - key: AUTO_START
+        value: false
