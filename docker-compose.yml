@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./server/src:/app/src
+      - ./server/package.json:/app/package.json
+      - ./server/tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+      - sqlite_data:/app/data
+    env_file:
+      - ./server/.env
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client/src:/app/src
+      - ./client/index.html:/app/index.html
+      - ./client/package.json:/app/package.json
+      - ./client/tsconfig.json:/app/tsconfig.json
+      - ./client/tsconfig.node.json:/app/tsconfig.node.json
+      - ./client/vite.config.ts:/app/vite.config.ts
+      - /app/node_modules
+    env_file:
+      - ./client/.env
+    depends_on:
+      - backend
+
+volumes:
+  sqlite_data:
