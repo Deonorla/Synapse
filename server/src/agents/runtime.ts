@@ -2,7 +2,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import cron from 'node-cron';
 import { getActiveListings } from '../marketplace/discovery.ts';
 import { purchaseDatasetWithReceipt } from '../marketplace/buyer.ts';
-import { saveAgentWallet, getAgentWallet, savePurchase, hasPurchased } from '../db/sqlite.ts';
+import { saveAgentWallet, getAgentWallet, getAgentWalletByGoogleId, savePurchase, hasPurchased } from '../db/sqlite.ts';
 import type { AgentLogEvent, DatasetListing } from '../marketplace/types.ts';
 import { getMemWalClient, agentNamespace, isMemWalConfigured } from '../memory/memwal.ts';
 import { synthesizeDataset, evaluateListingWithMemory } from '../memory/synthesizer.ts';
@@ -42,9 +42,11 @@ export function getAgentLogs(ownerAddress: string): Array<AgentLogEvent & { time
   return state ? [...state.logBuffer] : [];
 }
 
-export async function getActiveAgentKeypair(ownerAddress: string): Promise<Ed25519Keypair | null> {
-  if (!ownerAddress) return null;
-  const wallet = await getAgentWallet(ownerAddress);
+export async function getActiveAgentKeypair(identifier: string, isGoogleId = false): Promise<Ed25519Keypair | null> {
+  if (!identifier) return null;
+  const wallet = isGoogleId
+    ? await getAgentWalletByGoogleId(identifier)
+    : await getAgentWallet(identifier);
   if (!wallet) return null;
   // Use initializeKeypair to properly parse the bech32 key string
   return initializeKeypair(wallet.privateKeyStr);
@@ -293,24 +295,28 @@ export async function executeAgentTick(
   });
 }
 
-export async function registerAgent(config: { ownerPublicKey: string }): Promise<{ agentAddress: string }> {
-  // Check if wallet already exists in the database
-  const existingWallet = await getAgentWallet(config.ownerPublicKey);
-  
-  if (existingWallet) {
+export async function registerAgent(config: { ownerPublicKey: string; googleUserId?: string }): Promise<{ agentAddress: string }> {
+  // Check if wallet already exists by Google ID first, then by owner address
+  const existingByGoogle = config.googleUserId ? await getAgentWalletByGoogleId(config.googleUserId) : null;
+  if (existingByGoogle) {
+    console.log(`[Agent] Found existing wallet for owner: ${existingByGoogle.ownerAddress} (google: ${config.googleUserId})`);
+    return { agentAddress: existingByGoogle.agentAddress };
+  }
+  const existingByOwner = await getAgentWallet(config.ownerPublicKey);
+  if (existingByOwner) {
     console.log(`[Agent] Found existing wallet for owner: ${config.ownerPublicKey}`);
-    return { agentAddress: existingWallet.agentAddress };
+    return { agentAddress: existingByOwner.agentAddress };
   }
 
-  console.log(`[Agent] Generating new wallet for owner: ${config.ownerPublicKey}`);
+  console.log(`[Agent] Generating new wallet for owner: ${config.ownerPublicKey} (google: ${config.googleUserId || 'none'})`);
   const newKeypair = new Ed25519Keypair();
   const agentAddress = newKeypair.getPublicKey().toSuiAddress();
   
   // getSecretKey returns the bech32 format starting with suiprivkey1...
   const privateKeyStr = newKeypair.getSecretKey();
   
-  // Encrypt and save to DB
-  await saveAgentWallet(config.ownerPublicKey, agentAddress, privateKeyStr);
+  // Encrypt and save to DB, linked to Google user ID
+  await saveAgentWallet(config.ownerPublicKey, agentAddress, privateKeyStr, config.googleUserId);
   
   return { agentAddress };
 }
@@ -371,7 +377,7 @@ export async function getAgentStatus(ownerAddress: string) {
       ownerAddress: null,
       lastTickTime: null,
       tickCount: 0,
-    };
+    } as { isRegistered: boolean; isRunning: boolean; agentAddress: string | null; ownerAddress: string | null; lastTickTime: Date | null; tickCount: number };
   }
 
   const wallet = await getAgentWallet(ownerAddress);

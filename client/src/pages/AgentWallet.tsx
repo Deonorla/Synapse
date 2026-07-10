@@ -12,7 +12,7 @@ import {
   Cpu,
 } from 'lucide-react';
 
-import { useCurrentAccount, useSuiClient } from '@mysten/dapp-kit';
+import { useAuth } from '../contexts/AuthContext';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type AgentLogEntry, type DatasetListing, type MemoryRecallResult } from '../lib/api';
 import { formatAddress, formatMist } from '../lib/sui';
@@ -161,8 +161,8 @@ function formatAgentLog(log: AgentLogEntry): string | JSX.Element {
 }
 
 export default function AgentWallet({ wallet }: AgentWalletProps) {
-  const account = useCurrentAccount();
-  const isConnectedToSui = Boolean(account);
+  const { address, suiClient, googleUser } = useAuth();
+  const isConnectedToSui = Boolean(address);
 
   // ─── State ──────────────────────────────────────────────────
   const [toggleLoop, setToggleLoop] = useState(wallet.toggleLoop);
@@ -175,20 +175,21 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
 
   // ─── Queries ────────────────────────────────────────────────
   const queryClient = useQueryClient();
-  const suiClient = useSuiClient();
 
-  const currentOwnerAddress = account?.address || wallet.address;
+  const currentOwnerAddress = address || wallet.address;
+
+  const googleUserId = googleUser?.sub;
 
   const health = useQuery({ queryKey: ['health'], queryFn: api.health, refetchInterval: 5000 });
   const status = useQuery({ 
     queryKey: ['agent-status', currentOwnerAddress], 
-    queryFn: () => api.agentStatus(currentOwnerAddress), 
+    queryFn: () => api.agentStatus(currentOwnerAddress, googleUserId), 
     refetchInterval: 5000,
     enabled: Boolean(currentOwnerAddress),
   });
   const agentLogs = useQuery({ 
     queryKey: ['agent-logs', currentOwnerAddress], 
-    queryFn: () => api.agentLogs(currentOwnerAddress), 
+    queryFn: () => api.agentLogs(currentOwnerAddress, googleUserId), 
     refetchInterval: 3000,
     enabled: Boolean(currentOwnerAddress),
   });
@@ -221,12 +222,12 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
 
   // ─── Mutations ──────────────────────────────────────────────
   const start = useMutation({
-    mutationFn: () => api.startAgent(currentOwnerAddress),
+    mutationFn: () => api.startAgent(currentOwnerAddress, googleUserId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent-status', currentOwnerAddress] }),
   });
 
   const stop = useMutation({
-    mutationFn: () => api.stopAgent(currentOwnerAddress),
+    mutationFn: () => api.stopAgent(currentOwnerAddress, googleUserId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent-status', currentOwnerAddress] }),
   });
 
@@ -247,7 +248,7 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
   });
 
   const initBackendWallet = useMutation({
-    mutationFn: () => api.registerAgent(currentOwnerAddress),
+    mutationFn: () => api.registerAgent(currentOwnerAddress, googleUserId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['agent-status', currentOwnerAddress] });
     },
@@ -486,8 +487,7 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
 
             {/* Setup steps */}
             <div className="space-y-3 mb-6">
-              {[
-                { step: 1, title: 'Wallet detected', detail: `Address: ${formatAddress(account?.address ?? wallet.address)}`, done: true },
+              {[                {step: 1, title: 'Wallet detected', detail: `Address: ${formatAddress(address ?? wallet.address)}`, done: true },
                 { step: 2, title: 'Register with backend', detail: 'Creates or restores the encrypted buying wallet for this address.', done: backendRegistered },
                 { step: 3, title: 'Open agent controls', detail: 'Once created, you can start the agent, fund the wallet, and view live activity.', done: false },
               ].map(({ step, title, detail, done }) => (
@@ -525,7 +525,7 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
             <div className="space-y-4 text-xs text-zinc-300">
               <div>
                 <p className="font-mono font-black uppercase text-[10px] text-zinc-500 mb-1">Owner wallet</p>
-                <p className="font-mono">{formatAddress(account?.address ?? wallet.address, 10)}</p>
+                <p className="font-mono">{formatAddress(address ?? wallet.address, 10)}</p>
               </div>
               <div>
                 <p className="font-mono font-black uppercase text-[10px] text-zinc-500 mb-1">Agent buying wallet</p>
@@ -640,7 +640,7 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
             <div className="border-b border-[#111312]/20 p-4 flex justify-between items-center bg-[#EAEFEC]">
               <span className="font-mono text-[10px] sm:text-xs text-zinc-800 uppercase tracking-widest flex items-center font-black">
                 <Terminal className="w-4 h-4 mr-2 text-[#111312] flex-shrink-0" />
-                <span className="truncate">Cognitive Ingestion Engine Logs</span>
+                <span className="truncate">Memory Agent Activity Logs</span>
               </span>
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                 <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-medium text-[#3E7A5E] bg-emerald-50 px-2 sm:px-3 py-1 rounded-full">
@@ -665,7 +665,7 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
                 </div>
               ) : activityEntries.length === 0 ? (
                 <div className="text-zinc-600 py-12 text-center uppercase tracking-wider text-[10px] font-bold">
-                  [ SYSTEM_IDLE // COGNITIVE AGENT PIPELINE IDLE ]
+                  [ SYSTEM_IDLE // MEMORY AGENT PIPELINE IDLE ]
                 </div>
               ) : (
                 activityEntries.map((log) => (
@@ -871,22 +871,22 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
           {/* ── Brain decoration ── */}
           <div className="bg-[#111312] text-white border-2 border-[#111352] p-4 relative overflow-hidden group">
             <span className="font-mono text-[8px] text-zinc-450 tracking-widest uppercase block mb-3 font-semibold">
-              [ COGNITIVE ANALYSIS PIPELINE ]
+              [ MEMORY ANALYSIS PIPELINE ]
             </span>
             <div className="border border-zinc-800 overflow-hidden mb-3 bg-[#E1E5E2] relative p-1">
               <img
                 src="/brain.png"
-                alt="Brain visualization in settings"
+                alt="Memory Agent Visualization"
                 referrerPolicy="no-referrer"
                 className="w-full h-auto max-h-[140px] object-cover group-hover:scale-105 duration-500"
               />
               <div className="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-1 flex justify-between font-mono text-[8px] uppercase">
-                <span className="text-emerald-400">COGNITIVE MODEL</span>
+                <span className="text-emerald-400">MEMORY_MODEL</span>
                 <span className="text-zinc-400">ACTIVE</span>
               </div>
             </div>
             <p className="text-[11px] font-serif leading-relaxed italic text-zinc-300">
-              The neural system parses semantic descriptions mapped onto listed catalogs. Positive matches automatically triggers purchase cycles.
+              The memory agent accumulates knowledge across sessions, recalling relevant context for increasingly accurate decisions.
             </p>
           </div>
 
@@ -908,7 +908,7 @@ export default function AgentWallet({ wallet }: AgentWalletProps) {
           <tbody>
             <tr className="border-b border-[#111312]/10">
               <td className="py-3 px-6 text-zinc-500 uppercase text-[10px] font-black">Owner Address</td>
-              <td className="py-3 px-6 font-bold break-all">{account?.address ?? wallet.address}</td>
+              <td className="py-3 px-6 font-bold break-all">{address ?? wallet.address}</td>
             </tr>
             <tr className="border-b border-[#111312]/10">
               <td className="py-3 px-6 text-zinc-500 uppercase text-[10px] font-black">Agent Buying Wallet</td>

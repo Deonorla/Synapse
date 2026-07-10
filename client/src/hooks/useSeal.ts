@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { useSuiClient, useSignPersonalMessage, useCurrentAccount } from '@mysten/dapp-kit';
 import { SessionKey, SealClient } from '@mysten/seal';
+import { useAuth } from '../contexts/AuthContext';
 
 import { bcs } from '@mysten/bcs';
 
 export function useSeal() {
-  const suiClient = useSuiClient();
-  const account = useCurrentAccount();
-  const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
+  const { suiClient, keypair, address } = useAuth();
+  const account = address ? { address } : null;
   const [sessionKey, setSessionKey] = useState<SessionKey | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
 
@@ -97,7 +96,7 @@ export function useSeal() {
   });
 
   const createSession = async () => {
-    if (!account) throw new Error("Wallet not connected");
+    if (!account || !keypair) throw new Error("Wallet not connected");
     setIsInitializing(true);
     try {
       const packageId = (import.meta as any).env.VITE_SEAL_PACKAGE_ID || '0x984960ebddd75c15c6d38355ac462621db0ffc7d6647214c802cd3b685e1af3d';
@@ -109,14 +108,11 @@ export function useSeal() {
         suiClient: suiClient as any,
       });
 
-      // Sign the personal message to prove ownership of the address
+      // Sign the personal message using the managed keypair
       const message = newSessionKey.getPersonalMessage();
-      const signatureResponse = await signPersonalMessage({
-        message,
-        account,
-      });
+      const signature = await keypair.signPersonalMessage(message);
       
-      await newSessionKey.setPersonalMessageSignature(signatureResponse.signature);
+      await newSessionKey.setPersonalMessageSignature(signature.signature);
       
       setSessionKey(newSessionKey);
       setIsInitializing(false);

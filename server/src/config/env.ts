@@ -32,6 +32,9 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().default(''),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().default(''),
 
+  // Google Auth
+  GOOGLE_CLIENT_ID: z.string().default(''),
+
   // Server
   STORAGE_DRIVER: z.enum(['walrus', 'mock']).default('mock'),
   PORT: z.coerce.number().default(3002),

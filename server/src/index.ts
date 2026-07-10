@@ -5,8 +5,11 @@ import { agentRouter } from './routes/agent.ts';
 import { memoryRouter } from './routes/memory.ts';
 import { sealRouter } from './routes/seal.ts';
 import { marketplaceRouter } from './routes/marketplace.ts';
+import { transferRouter } from './routes/transfer.ts';
+import { walletRouter } from './routes/wallet.ts';
 import { startAgentLoop } from './agents/runtime.ts';
 import { requireX402Payment } from './x402/middleware.ts';
+import { requireGoogleAuth } from './middleware/auth.ts';
 import { initDB } from './db/sqlite.ts';
 import { syncListingsFromChain } from './marketplace/discovery.ts';
 
@@ -24,11 +27,16 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// Mount API routes
+// Mount API routes (public)
 app.use('/api/agent', agentRouter);
 app.use('/api/memory', memoryRouter);
 app.use('/api/seal', sealRouter);
 app.use('/api/marketplace', marketplaceRouter);
+app.use('/api/transfer', transferRouter);
+app.use('/api/wallet', walletRouter);
+
+// Protected routes (require Google auth)
+app.use('/api/protected', requireGoogleAuth);
 
 // Example protected route demonstrating x402 integration with flat pricing
 app.get('/api/protected/data', requireX402Payment(5000000), (req, res) => {

@@ -9,7 +9,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { formatMist, buildListDatasetTx } from '../lib/sui';
 import { useSeal } from '../hooks/useSeal';
@@ -41,11 +41,10 @@ async function readFileForBackend(file: File): Promise<string> {
 
 
 export default function SellDataLegacy({ onSuccess }: SellDataLegacyProps) {
-  const account = useCurrentAccount();
+  const { address, keypair, suiClient } = useAuth();
   const { encryptData } = useSeal();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   // ─── Form state ─────────────────────────────────────────────
   const [title, setTitle] = useState('');
@@ -83,7 +82,7 @@ export default function SellDataLegacy({ onSuccess }: SellDataLegacyProps) {
     if (Number.isNaN(priceNum) || priceNum <= 0) return setErrorMsg('Price must be a valid positive number.');
 
     try {
-      if (!account) throw new Error('Connect your Sui wallet first');
+      if (!address || !keypair) throw new Error('Connect your Sui wallet first');
 
       setIsPublishing(true);
       // Step 1: Generate random 32-byte Seal policy ID
@@ -110,7 +109,12 @@ export default function SellDataLegacy({ onSuccess }: SellDataLegacyProps) {
         blobId: uploadedBlobId,
         policyIdBytes,
       });
-      const result = await signAndExecute({ transaction: tx as any });
+      const builtTx = await tx.build({ client: suiClient });
+      const signedTx = await keypair.signTransaction(builtTx);
+      const result = await suiClient.executeTransactionBlock({
+        transactionBlock: signedTx.bytes,
+        signature: signedTx.signature,
+      });
 
       // Notify backend to index the listing for fast reads
       try {
@@ -121,7 +125,7 @@ export default function SellDataLegacy({ onSuccess }: SellDataLegacyProps) {
           title,
           description,
           priceMist,
-          sellerAddress: account.address,
+          sellerAddress: address,
         });
       } catch (indexErr) {
         console.warn('[SellData] Backend indexing failed (non-critical):', indexErr);
@@ -151,7 +155,7 @@ export default function SellDataLegacy({ onSuccess }: SellDataLegacyProps) {
   };
 
   // ─── Wallet disconnected guard ──────────────────────────────
-  if (!account) {
+  if (!address) {
     return (
       <div className="max-w-6xl mx-auto py-4 px-2 font-sans selection:bg-[#111312] selection:text-white">
         <div className="border-b-2 border-[#111312] pb-5 mb-8">

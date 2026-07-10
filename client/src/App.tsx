@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { createNetworkConfig, SuiClientProvider, WalletProvider, ConnectButton, useCurrentAccount, useCurrentWallet, useSuiClient, useWallets } from '@mysten/dapp-kit';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Compass, ShoppingBag, Terminal, Activity, LogOut, Eclipse, Wallet, CheckCircle2, Unplug } from 'lucide-react';
+import { Compass, ShoppingBag, Terminal, Activity, LogOut, Eclipse, CheckCircle2, Unplug, ArrowRightLeft } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { formatMist } from './lib/sui';
 import { ToastProvider } from './components/Toast';
-import LandingViewLegacy from './pages/LandingView';
+import LandingView from './pages/LandingView';
+import AuthPage from './pages/AuthPage';
 import MarketplaceFeedLegacy from './pages/MarketplaceFeed';
 import SellDataLegacy from './pages/SellData';
 import AgentWalletLegacy from './pages/AgentWallet';
+import WalletManager from './pages/WalletManager';
 
 interface Wallet {
   address: string;
@@ -21,50 +24,71 @@ interface Wallet {
 }
 
 const queryClient = new QueryClient();
-const { networkConfig } = createNetworkConfig({
-  testnet: { url: 'https://fullnode.testnet.sui.io:443' },
-});
 
 const NAV_ITEMS = [
   { to: '/feed', icon: Compass, label: '01 / DATA_MARKET' },
   { to: '/sell', icon: ShoppingBag, label: '02 / PUBLISH_LOCK' },
   { to: '/wallet', icon: Terminal, label: '03 / COMMAND_WALLETS' },
+  { to: '/funds', icon: ArrowRightLeft, label: '04 / FUND_TRANSFER' },
 ] as const;
+
+/* ── Route: / (Landing Page) ──────────────────────────────── */
 
 function LandingRoute() {
   const navigate = useNavigate();
-  const account = useCurrentAccount();
+  const { googleUser, isReady } = useAuth();
 
-  // Auto-navigate to data marketplace when wallet connects on landing page
+  // If already signed in, skip landing and go straight to feed
   useEffect(() => {
-    if (account) {
+    if (isReady && googleUser) {
       navigate('/feed', { replace: true });
     }
-  }, [account, navigate]);
+  }, [googleUser, isReady, navigate]);
 
-  return <LandingViewLegacy onEnter={() => navigate('/feed')} />;
+  return <LandingView onEnter={() => navigate('/auth')} />;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main AppShell                                                     */
-/* ------------------------------------------------------------------ */
+/* ── Route: /auth (Sign In / Sign Up) ─────────────────────── */
+
+function AuthRoute() {
+  const navigate = useNavigate();
+  const { googleUser, isReady } = useAuth();
+
+  // If already signed in, go to feed
+  useEffect(() => {
+    if (isReady && googleUser) {
+      navigate('/feed', { replace: true });
+    }
+  }, [googleUser, isReady, navigate]);
+
+  return <AuthPage />;
+}
+
+/* ── Route: /feed, /sell, /wallet (App Shell) ─────────────── */
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  const { googleUser, isReady } = useAuth();
+
+  useEffect(() => {
+    if (isReady && !googleUser) {
+      navigate('/auth', { replace: true });
+    }
+  }, [googleUser, isReady, navigate]);
+
+  if (!googleUser) return null;
+  return <>{children}</>;
+}
 
 const AppShell = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const isLanding = location.pathname === '/';
-
-  // Real Sui wallet connection
-  const account = useCurrentAccount();
-  const suiWallet = useCurrentWallet();
-  const suiClient = useSuiClient();
-  const wallets = useWallets();
-  const isSlushAvailable = wallets.some((w: any) => w.name === 'Slush');
+  const { googleUser, address, suiClient, signOut, isReady } = useAuth();
 
   const balanceQuery = useQuery({
-    queryKey: ['wallet-balance', account?.address],
-    queryFn: () => suiClient.getBalance({ owner: account!.address! }),
-    enabled: Boolean(account?.address),
+    queryKey: ['wallet-balance', address],
+    queryFn: () => suiClient.getBalance({ owner: address! }),
+    enabled: Boolean(address),
     refetchInterval: 15000,
   });
 
@@ -100,18 +124,6 @@ const AppShell = () => {
     }
   };
 
-
-  /* ---- Landing layout (no header/footer shell) ---- */
-  if (isLanding) {
-    return (
-      <Routes>
-        <Route path="/" element={<LandingRoute />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    );
-  }
-
-  /* ---- App shell layout ---- */
   return (
     <div className="min-h-screen bg-[#D6DAD7] text-[#111312] font-sans selection:bg-[#111312] selection:text-[#D6DAD7] flex flex-col relative overflow-x-hidden p-3 md:p-6">
       <div className="absolute inset-0 tech-grid opacity-[0.35] pointer-events-none" />
@@ -124,7 +136,7 @@ const AppShell = () => {
             <Eclipse className="w-5 h-5 text-[#111312]" />
             <div>
               <h1 className="text-xl font-black tracking-widest text-[#111312] uppercase leading-none">SYNAPSE</h1>
-              <span className="font-mono text-[8px] text-zinc-500 tracking-widest block mt-0.5">[ SECURE DATA PLAZA PROTOCOL // SUI ]</span>
+              <span className="font-mono text-[8px] text-zinc-500 tracking-widest block mt-0.5">[ PERSISTENT MEMORY AGENT // QWEN CLOUD ]</span>
             </div>
           </div>
 
@@ -148,17 +160,17 @@ const AppShell = () => {
           <div className="flex items-center space-x-3 justify-between xl:justify-end">
             {/* Connected wallet status */}
             <div className="hidden md:flex items-center gap-2 bg-[#D4D9D5] border border-[#111312]/20 px-3.5 py-1.5">
-              {account ? (
+              {address ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#3E7A5E]" />
               ) : (
                 <Unplug className="w-3.5 h-3.5 text-zinc-500" />
               )}
               <div className="leading-tight text-right">
                 <span className="text-[7px] font-mono text-zinc-600 uppercase tracking-widest font-black block">
-                  {account ? 'SUI_TESTNET // CONNECTED' : suiWallet.isConnecting ? 'CONNECTING...' : 'WALLET STATE // DISCONNECTED'}
+                  {address ? 'SUI_TESTNET // CONNECTED' : isReady ? 'WALLET STATE // INITIALIZING' : 'WALLET STATE // DISCONNECTED'}
                 </span>
                 <span className="font-mono text-xs font-black text-[#111312]">
-                  {account
+                  {address
                     ? ` ${balanceQuery.data ? formatMist(balanceQuery.data.totalBalance) : '...'} `
                     :  ' '
                   }
@@ -166,61 +178,46 @@ const AppShell = () => {
               </div>
             </div>
 
-            {/* Connect wallet button */}
-            <div className="synapse-wallet-button">
-              {isSlushAvailable ? (
-                <ConnectButton
-                  connectText={
-                    <span className="inline-flex items-center gap-1.5">
-                      <Wallet className="w-3.5 h-3.5" />
-                      Connect
-                    </span>
-                  }
+            {/* User info / sign out */}
+            <div className="flex items-center gap-2">
+              {googleUser && (
+                <img
+                  src={googleUser.picture}
+                  alt={googleUser.name}
+                  className="w-8 h-8 rounded-full border-2 border-[#111312]"
                 />
-              ) : (
-                <a
-                  href="https://chromewebstore.google.com/detail/slush/wpnkohnepmfndnbhlijahamhiihankppl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex flex-col items-center gap-1 group"
-                >
-                  <span className="inline-flex items-center gap-1.5 bg-[#111312] text-white border-2 border-[#111312] px-4 py-2 font-mono text-[10px] font-extrabold uppercase tracking-wider hover:bg-white hover:text-[#111312] transition-colors no-underline">
-                    <Wallet className="w-3.5 h-3.5" />
-                    Install Slush
-                  </span>
-                  <span className="text-[7px] font-mono text-zinc-500 uppercase tracking-wider">
-                    Required for secure dataset publishing
-                  </span>
-                </a>
               )}
+              <Link
+                to="/"
+                onClick={signOut}
+                title="Sign out"
+                className="border-2 border-[#111312] bg-[#E1E5E2] hover:bg-black text-[#111312] hover:text-white p-2.5 transition-colors select-none"
+              >
+                <LogOut className="w-4 h-4" />
+              </Link>
             </div>
-
-            <Link
-              to="/"
-              title="Warp back to Interactive Landing"
-              className="border-2 border-[#111312] bg-[#E1E5E2] hover:bg-black text-[#111312] hover:text-white p-2.5 transition-colors select-none"
-            >
-              <LogOut className="w-4 h-4" />
-            </Link>
           </div>
         </header>
 
         <main className="flex-grow relative z-10 w-full p-4 md:p-8">
-          <Routes>
-            <Route path="/feed" element={<MarketplaceFeedLegacy onRefreshWallet={fetchWallet} />} />
-            <Route path="/sell" element={<SellDataLegacy onSuccess={() => navigate('/feed')} />} />
-            <Route path="/wallet" element={<AgentWalletLegacy wallet={wallet} />} />
-            <Route path="*" element={<Navigate to="/feed" replace />} />
-          </Routes>
+          {location.pathname.startsWith('/sell') ? (
+            <SellDataLegacy onSuccess={() => navigate('/feed')} />
+          ) : location.pathname.startsWith('/wallet') ? (
+            <AgentWalletLegacy wallet={wallet} />
+          ) : location.pathname.startsWith('/funds') ? (
+            <WalletManager />
+          ) : (
+            <MarketplaceFeedLegacy onRefreshWallet={fetchWallet} />
+          )}
         </main>
 
         <footer className="border-t-2 border-[#111312] py-4 px-4 md:px-8 text-center text-[10px] font-mono text-zinc-600 bg-[#E1E5E2] relative z-10">
           <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2.5">
             <div className="flex items-center space-x-2">
               <Activity className="w-3.5 h-3.5 text-black animate-pulse" />
-              <span className="font-bold">SUI_SOCIETY_LEDGER: INTEGRAL PORT 3000 // DECENTRALIZED</span>
+              <span className="font-bold">SYNAPSE_MEMORY_LEDGER: INTEGRAL PORT 3002 // AUTONOMOUS</span>
             </div>
-            <div className="font-semibold uppercase text-[9px]">MUTABILITY VERIFIED // POWERED BY WALRUS DISKS + GEMINI MEMORY ENGINE</div>
+            <div className="font-semibold uppercase text-[9px]">MEMORY VERIFIED // POWERED BY QWEN CLOUD + PERSISTENT MEMORY ENGINE</div>
           </div>
         </footer>
       </div>
@@ -230,15 +227,26 @@ const AppShell = () => {
 
 const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-        <WalletProvider autoConnect walletFilter={(wallet: any) => wallet.name === 'Slush'}>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
           <ToastProvider>
-            <AppShell />
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<LandingRoute />} />
+              <Route path="/auth" element={<AuthRoute />} />
+
+            {/* Protected routes (require Google sign-in) */}
+            <Route path="/feed" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+            <Route path="/sell" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+            <Route path="/wallet" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+            <Route path="/funds" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </ToastProvider>
-        </WalletProvider>
-      </SuiClientProvider>
-    </QueryClientProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </GoogleOAuthProvider>
   );
 }
 

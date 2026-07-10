@@ -22,11 +22,26 @@ export async function initDB() {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS agent_wallets (
       owner_address TEXT PRIMARY KEY,
+      google_user_id TEXT,
       agent_address TEXT NOT NULL,
       encrypted_private_key TEXT NOT NULL,
       iv TEXT NOT NULL,
       auth_tag TEXT NOT NULL,
       created_at INTEGER DEFAULT (cast(strftime('%s', 'now') as int))
+    )
+  `);
+
+  await ensureColumn('agent_wallets', 'google_user_id', 'TEXT');
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS client_wallets (
+      google_user_id TEXT PRIMARY KEY,
+      encrypted_private_key TEXT NOT NULL,
+      iv TEXT NOT NULL,
+      auth_tag TEXT NOT NULL,
+      sui_address TEXT NOT NULL,
+      created_at INTEGER DEFAULT (cast(strftime('%s', 'now') as int)),
+      updated_at INTEGER DEFAULT (cast(strftime('%s', 'now') as int))
     )
   `);
 
@@ -76,19 +91,73 @@ async function ensureColumn(tableName: string, columnName: string, definition: s
   }
 }
 
-export async function saveAgentWallet(ownerAddress: string, agentAddress: string, privateKeyStr: string) {
+export async function saveClientWallet(googleUserId: string, privateKeyStr: string, suiAddress: string) {
+  const database = await initDB();
+  const encryptedData = encrypt(privateKeyStr);
+
+  await database.run(
+    `INSERT OR REPLACE INTO client_wallets (google_user_id, encrypted_private_key, iv, auth_tag, sui_address, updated_at)
+     VALUES (?, ?, ?, ?, ?, cast(strftime('%s', 'now') as int))`,
+    [googleUserId, encryptedData.encryptedText, encryptedData.iv, encryptedData.authTag, suiAddress]
+  );
+
+  console.log(`[DB] Saved client wallet for google: ${googleUserId} (address: ${suiAddress})`);
+}
+
+export async function getClientWallet(googleUserId: string): Promise<{ privateKeyStr: string; suiAddress: string } | null> {
+  const database = await initDB();
+  const row = await database.get(
+    `SELECT encrypted_private_key, iv, auth_tag, sui_address FROM client_wallets WHERE google_user_id = ?`,
+    [googleUserId]
+  );
+
+  if (!row) return null;
+
+  const privateKeyStr = decrypt({
+    encryptedText: row.encrypted_private_key,
+    iv: row.iv,
+    authTag: row.auth_tag
+  });
+
+  return { privateKeyStr, suiAddress: row.sui_address };
+}
+
+export async function saveAgentWallet(ownerAddress: string, agentAddress: string, privateKeyStr: string, googleUserId?: string) {
   const database = await initDB();
   
   // Encrypt the private key securely before saving
   const encryptedData = encrypt(privateKeyStr);
 
   await database.run(
-    `INSERT OR REPLACE INTO agent_wallets (owner_address, agent_address, encrypted_private_key, iv, auth_tag) 
-     VALUES (?, ?, ?, ?, ?)`,
-    [ownerAddress, agentAddress, encryptedData.encryptedText, encryptedData.iv, encryptedData.authTag]
+    `INSERT OR REPLACE INTO agent_wallets (owner_address, google_user_id, agent_address, encrypted_private_key, iv, auth_tag) 
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [ownerAddress, googleUserId || null, agentAddress, encryptedData.encryptedText, encryptedData.iv, encryptedData.authTag]
   );
   
-  console.log(`[DB] Saved encrypted wallet for owner: ${ownerAddress}`);
+  console.log(`[DB] Saved encrypted wallet for owner: ${ownerAddress} (google: ${googleUserId || 'none'})`);
+}
+
+export async function getAgentWalletByGoogleId(googleUserId: string): Promise<{ agentAddress: string; privateKeyStr: string; ownerAddress: string } | null> {
+  const database = await initDB();
+
+  const row = await database.get(
+    `SELECT owner_address, agent_address, encrypted_private_key, iv, auth_tag FROM agent_wallets WHERE google_user_id = ?`,
+    [googleUserId]
+  );
+
+  if (!row) return null;
+
+  const privateKeyStr = decrypt({
+    encryptedText: row.encrypted_private_key,
+    iv: row.iv,
+    authTag: row.auth_tag
+  });
+
+  return {
+    agentAddress: row.agent_address,
+    privateKeyStr,
+    ownerAddress: row.owner_address
+  };
 }
 
 export async function getAgentWallet(ownerAddress: string): Promise<{ agentAddress: string; privateKeyStr: string } | null> {

@@ -121,22 +121,38 @@ export const api = {
       headers: digest ? { 'x-sui-payment-digest': digest } : undefined,
     }),
 
-  agentStatus: (ownerAddress: string) => request<AgentStatus>(`/api/agent/status?ownerAddress=${encodeURIComponent(ownerAddress)}`),
-  startAgent: (ownerAddress: string) => request<{ message: string }>('/api/agent/start', {
+  agentStatus: (ownerAddress: string, googleUserId?: string) => {
+    return request<AgentStatus>(`/api/agent/status?ownerAddress=${encodeURIComponent(ownerAddress)}${googleUserId ? `&googleUserId=${encodeURIComponent(googleUserId)}` : ''}`);
+  },
+  startAgent: (ownerAddress: string, googleUserId?: string) => request<{ message: string }>('/api/agent/start', {
     method: 'POST',
-    body: JSON.stringify({ ownerAddress }),
+    body: JSON.stringify({ ownerAddress, googleUserId }),
   }),
-  stopAgent: (ownerAddress: string) => request<{ message: string }>('/api/agent/stop', { 
+  stopAgent: (ownerAddress: string, googleUserId?: string) => request<{ message: string }>('/api/agent/stop', { 
     method: 'POST',
-    body: JSON.stringify({ ownerAddress }),
+    body: JSON.stringify({ ownerAddress, googleUserId }),
   }),
-  agentLogs: (ownerAddress: string) => request<{ logs: AgentLogEntry[] }>(`/api/agent/logs?ownerAddress=${encodeURIComponent(ownerAddress)}`),
-  registerAgent: (ownerPublicKey: string) => 
+  agentLogs: (ownerAddress: string, googleUserId?: string) => {
+    return request<{ logs: AgentLogEntry[] }>(`/api/agent/logs?ownerAddress=${encodeURIComponent(ownerAddress)}${googleUserId ? `&googleUserId=${encodeURIComponent(googleUserId)}` : ''}`);
+  },
+  registerAgent: (ownerPublicKey: string, googleUserId?: string) => 
     request<{ message: string; agentAddress: string }>('/api/agent/register', { 
-      method: 'POST', body: JSON.stringify({ ownerPublicKey }) 
+      method: 'POST', body: JSON.stringify({ ownerPublicKey, googleUserId }) 
     }),
   getAgentWallet: (ownerAddress: string) => request<{ publicKey: string; agentAddress: string; ownerAddress: string }>(`/api/agent/wallet?ownerAddress=${encodeURIComponent(ownerAddress)}`),
   getAgentPurchases: (ownerAddress: string) => request<{ purchases: unknown[] }>(`/api/agent/purchases?ownerAddress=${encodeURIComponent(ownerAddress)}`),
+
+  // Client wallet backup
+  saveClientWallet: (secretKey: string, suiAddress: string, idToken: string) =>
+    request<{ message: string; suiAddress: string }>('/api/wallet/client', {
+      method: 'POST',
+      body: JSON.stringify({ secretKey, suiAddress }),
+      headers: { Authorization: `Bearer ${idToken}` },
+    }),
+  getClientWallet: (idToken: string) =>
+    request<{ secretKey: string; suiAddress: string }>('/api/wallet/client', {
+      headers: { Authorization: `Bearer ${idToken}` },
+    }),
 
   remember: (text: string, secure: boolean) =>
     request<{ message: string; job?: unknown; blobId?: string }>('/api/memory/remember', {

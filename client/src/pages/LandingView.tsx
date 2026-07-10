@@ -1,8 +1,7 @@
 import { ArrowRight, ChevronRight, Video, Eclipse } from 'lucide-react';
-
-
 import { motion } from "framer-motion"
-import { ConnectButton } from '@mysten/dapp-kit';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 
 interface LandingViewProps {
@@ -10,6 +9,9 @@ interface LandingViewProps {
 }
 
 export default function LandingView({ onEnter }: LandingViewProps) {
+  const { googleUser } = useAuth();
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-[#D5DAD6] text-[#111312] font-sans selection:bg-[#111312] selection:text-[#D5DAD6] relative overflow-x-hidden p-3 md:p-6 transition-colors duration-500">
       
@@ -29,13 +31,13 @@ export default function LandingView({ onEnter }: LandingViewProps) {
                 <Eclipse className="w-6 h-6 text-[#111312] animate-spin-slow" />
                 <span className="font-extrabold tracking-widest text-[#111312] text-lg uppercase font-sans">SYNAPSE</span>
               </div>
-              <span className="font-mono text-[9px] tracking-widest text-zinc-600 uppercase mt-1">[ VANGUARD COGNITIVE CORE ]</span>
+              <span className="font-mono text-[9px] tracking-widest text-zinc-600 uppercase mt-1">[ MEMORY AGENT PROTOCOL // QWEN CLOUD ]</span>
             </div>
           </div>
 
           {/* Minimal Products / About links */}
           <div className="hidden md:flex items-center space-x-8 font-serif text-xs text-zinc-600 italic">
-            <span className="uppercase font-mono tracking-wider font-semibold not-italic">[ LATEST_INTELLIGENCE ]</span>
+            {/* <span className="uppercase font-mono tracking-wider font-semibold not-italic">[ QWEN CLOUD · MEMORY TRACK ]</span> */}
             {/* <span>//</span>
             <span className="hover:text-black cursor-pointer">walrus security</span>
             <span>//</span>
@@ -44,16 +46,19 @@ export default function LandingView({ onEnter }: LandingViewProps) {
 
         {/* Extreme Right Navigation Action Blocks */}
         <div className="flex items-center space-x-2 sm:space-x-4">
-          <div className="synapse-wallet-button">
-            <ConnectButton
-              connectText={
-                <span className="inline-flex items-center gap-2">
-                  <Eclipse className="w-4 h-4" />
-                  Connect Wallet
-                </span>
-              }
-            />
-          </div>
+          {googleUser ? (
+            <div className="flex items-center gap-2">
+              <img src={googleUser.picture} alt={googleUser.name} className="w-8 h-8 rounded-full border-2 border-[#111312]" />
+              <span className="font-mono text-xs font-bold text-[#111312]">{googleUser.name}</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/auth')}
+              className="bg-[#111312] hover:bg-white text-white hover:text-[#111312] border-2 border-[#111312] px-5 py-2.5 font-bold tracking-widest text-xs uppercase duration-300 shadow-md cursor-pointer"
+            >
+              Sign In
+            </button>
+          )}
         </div>
 
         </header>
@@ -73,11 +78,11 @@ export default function LandingView({ onEnter }: LandingViewProps) {
 
           {/* Side left — pulled back, doesn't compete */}
           <div className="absolute top-4 left-0 hidden lg:block max-w-[180px] space-y-2 text-left">
-            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider block">// SYSTEM_REGISTRY_2026</span>
+            <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider block">// MEMORY_AGENT_REGISTRY_2026</span>
             <div className="font-sans text-sm font-bold tracking-tight uppercase bg-[#111312] text-[#E1E5E2] px-2.5 py-1 inline-block">
-              SUI NETWORK
+              QWEN CLOUD
             </div>
-            <div className="text-xs font-mono text-zinc-600 tracking-wider">[ SECURE COGNITIVE DATABASE ]</div>
+            <div className="text-xs font-mono text-zinc-600 tracking-wider">[ PERSISTENT MEMORY CORE ]</div>
           </div>
 
           {/* Side right — unchanged */}
@@ -88,9 +93,9 @@ export default function LandingView({ onEnter }: LandingViewProps) {
               <div className="text-zinc-400 font-semibold">[ CODE: 6829_MUTABLE ]</div>
             </div>
             <ul className="space-y-1 mt-4 text-[10px] font-mono text-zinc-500 uppercase inline-block border-r-2 border-[#111312] pr-3 text-right">
-              <li>× Generative Models Active</li>
-              <li>× Walrus Storage Node</li>
-              <li>× Sui Network Sync Link</li>
+              <li>× Qwen Models Active</li>
+              <li>× Persistent Memory Store</li>
+              <li>× Cross-Session Memory Sync</li>
             </ul>
           </div>
 
@@ -117,7 +122,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
             >
               <img
                 src="/brain.png"
-                alt="Synapse Neural Brain View"
+                alt="Memory Agent Neural Core"
                 referrerPolicy="no-referrer"
                 className="w-full h-72  sm:h-[520px] object-contain -mt-60 mx-auto"
                 style={{ filter: "drop-shadow(0 20px 60px rgba(160,60,60,0.35))" }}
@@ -128,7 +133,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
           {/* Quote — overlaid at bottom-left, not stacked below */}
           <div className="absolute bottom-0 left-0 right-0 z-20 flex justify-center pb-2 px-4">
             <h2 className="text-lg sm:text-xl font-serif font-light font-mono text-[#111312] tracking-tight leading-tight text-center max-w-md opacity-75">
-              "A data marketplace where AI agents can learn on their own"
+              "A memory agent that learns, remembers, and evolves across every session"
             </h2>
           </div>
 
@@ -147,10 +152,10 @@ export default function LandingView({ onEnter }: LandingViewProps) {
               </div>
             </div>
             <div>
-              <span className="font-mono text-[9px] text-[#111312] tracking-wider block font-black uppercase">[ WALRUS STATUS INDEXED ]</span>
+              <span className="font-mono text-[9px] text-[#111312] tracking-wider block font-black uppercase">[ MEMORY STATUS INDEXED ]</span>
               <p className="text-[11px] text-zinc-600 font-mono tracking-tight leading-normal mt-0.5">
-                BLOB_ID_ENCRYPTED_AESGCM<br />
-                Sovereign custody protocols online
+                MEMORY_HASH_VERIFIED_SHA256<br />
+                Persistent memory protocols online
               </p>
             </div>
           </div>
@@ -161,7 +166,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
               onClick={onEnter}
               className="group w-full max-w-[280px] bg-[#111312] hover:bg-white text-white hover:text-[#111312] border-2 border-[#111312] px-6 py-4 font-bold tracking-widest text-xs uppercase duration-300 shadow-md cursor-pointer text-center flex items-center justify-between"
             >
-              <span>ACCESS THE PLATFORM</span>
+              <span>LAUNCH MEMORY AGENT</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
             </button>
           </div>
@@ -176,8 +181,8 @@ export default function LandingView({ onEnter }: LandingViewProps) {
                 <Video className="w-5 h-5 fill-white" />
               </div>
               <div className="text-left font-mono pr-4">
-                <span className="text-[8px] text-zinc-500 block uppercase font-bold">SYSTEM TUTORIAL</span>
-                <span className="text-[10px] text-zinc-800 block font-bold uppercase">SECURE INGESTION</span>
+                <span className="text-[8px] text-zinc-500 block uppercase font-bold">AGENT TUTORIAL</span>
+                <span className="text-[10px] text-zinc-800 block font-bold uppercase">MEMORY INGESTION</span>
               </div>
             </div>
           </div>
@@ -199,7 +204,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
           {/* Split headline — word 1 solid, word 2 outlined */}
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0">
             <h3 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-[#111312] uppercase leading-none">
-              Decentralized
+              Persistent
             </h3>
             <h3
               className="text-4xl sm:text-6xl font-extrabold tracking-tight uppercase leading-none"
@@ -208,7 +213,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
                 color: "transparent",
               }}
             >
-              Blueprint
+              Memory Agent
             </h3>
           </div>
 
@@ -231,27 +236,27 @@ export default function LandingView({ onEnter }: LandingViewProps) {
             {[
               {
                 num: "01",
-                title: "Sellers list data",
-                body: "Upload research, CSVs, PDFs, signals, or knowledge packs. The app encrypts the data before storage.",
-                tag: "ENCRYPT → STORE",
+                title: "Agent observes interactions",
+                body: "The memory agent watches your queries, preferences, and decisions across sessions to build a persistent knowledge base.",
+                tag: "OBSERVE → STORE",
               },
               {
                 num: "02",
-                title: "Agents browse and buy",
-                body: "Fund an agent wallet once. Your agent finds relevant datasets and pays sellers automatically.",
-                tag: "DISCOVER → PURCHASE",
+                title: "Memory accumulates context",
+                body: "Past interactions are embedded, indexed, and retrieved on demand. The agent recalls relevant memories to personalize every response.",
+                tag: "RECALL → PERSONALIZE",
               },
               {
                 num: "03",
-                title: "Everyone stays in control",
-                body: "Sellers set the price. Buyers control the wallet. Private data remains protected until access is purchased.",
-                tag: "CUSTODY → GOVERNED",
+                title: "Intelligent forgetting",
+                body: "Outdated or irrelevant memories are pruned automatically. The agent manages context windows efficiently using temporal decay.",
+                tag: "PRUNE → OPTIMIZE",
               },
               {
                 num: "04",
-                title: "Sui network settlement",
-                body: "The SUI ledger executes payment to seller addresses, releases decryption credentials, and writes to agent memory.",
-                tag: "SETTLE → UNLOCK",
+                title: "Cross-session evolution",
+                body: "Every session builds on the last. The agent makes increasingly accurate decisions as its memory grows smarter over time.",
+                tag: "LEARN → EVOLVE",
               },
             ].map((item) => (
               <div key={item.num} className="flex items-start gap-3 sm:gap-6 px-4 sm:px-12 py-5 sm:py-7 group hover:bg-[#111312]/[0.03] transition-colors">
@@ -290,7 +295,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
                 className="font-mono font-black text-[11vw] lg:text-[5vw] tracking-tighter uppercase"
                 style={{ WebkitTextStroke: "1px rgba(17,19,18,0.07)", color: "transparent" }}
               >
-                DNA
+                MEMORY
               </span>
             </div>
 
@@ -312,7 +317,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
               >
                 <img
                   src="/dna.png"
-                  alt="Synapse Abstract DNA Wireframe"
+                  alt="Memory Agent Network Wireframe"
                   referrerPolicy="no-referrer"
                   className="w-full max-w-[280px] sm:max-w-xs h-[380px] sm:h-[460px] object-contain mx-auto"
                   style={{
@@ -345,11 +350,11 @@ export default function LandingView({ onEnter }: LandingViewProps) {
               </div>
               <div>
                 <span className="font-mono text-[9px] text-[#111312] tracking-wider block font-black uppercase">
-                  [ WALRUS STATUS INDEXED ]
+                  [ MEMORY STATUS INDEXED ]
                 </span>
                 <p className="text-[10px] text-zinc-500 font-mono tracking-tight mt-0.5 leading-relaxed">
-                  BLOB_ID_ENCRYPTED_AESGCM<br />
-                  Sovereign custody protocols online
+                  MEMORY_HASH_VERIFIED_SHA256<br />
+                  Persistent memory protocols online
                 </p>
               </div>
             </div>
@@ -360,7 +365,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
                 onClick={onEnter}
                 className="group w-full max-w-[300px] bg-[#111312] hover:bg-white text-white hover:text-[#111312] border-2 border-[#111312] px-6 py-4 font-bold tracking-widest text-xs uppercase duration-300 shadow-md cursor-pointer flex items-center justify-between"
               >
-                <span>Load Synapse Market Labs</span>
+                <span>Launch Memory Agent</span>
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
@@ -371,7 +376,7 @@ export default function LandingView({ onEnter }: LandingViewProps) {
                 <span className="font-mono text-[9px] text-zinc-500 tracking-widest uppercase block">network status</span>
                 <div className="flex items-center justify-end gap-2 mt-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                  <span className="font-mono text-[10px] text-zinc-800 font-bold">SUI TESTNET LIVE</span>
+                  <span className="font-mono text-[10px] text-zinc-800 font-bold">QWEN CLOUD LIVE</span>
                 </div>
                 <span className="font-mono text-[8px] text-zinc-400 tracking-wide">latency: 14ms · nodes: 94</span>
               </div>
@@ -385,11 +390,11 @@ export default function LandingView({ onEnter }: LandingViewProps) {
       {/* Corporate disclaimer & validation lines */}
       <footer className="mt-12 border-2 border-[#111312] bg-[#111312] text-[#D5DAD6] py-10 px-6 sm:px-12 relative z-10 text-center font-mono text-[10px] uppercase">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>© {new Date().getFullYear()} SYNAPSE VANGUARD PROTOCOL. CLIENT-SIDE TRUST ASSURED CRYPTOGRAPHICALLY.</div>
+          <div>© {new Date().getFullYear()} SYNAPSE MEMORY AGENT PROTOCOL. QWEN CLOUD HACKATHON — TRACK 1: MEMORY AGENT.</div>
           <div className="flex space-x-4">
-            <span className="text-[#D8DDD9]">WALRUS BLOB GRID</span>
+            <span className="text-[#D8DDD9]">PERSISTENT MEMORY</span>
             <span>//</span>
-            <span className="text-[#D8DDD9]">SUI WORKSPACE V3</span>
+            <span className="text-[#D8DDD9]">MEMORY WORKSPACE V1</span>
           </div>
         </div>
       </footer>

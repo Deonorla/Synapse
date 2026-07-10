@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useAuth } from '../contexts/AuthContext';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Coins, Database, Loader2, RefreshCw, ShoppingCart } from 'lucide-react';
 import { api, type DatasetListing } from '../lib/api';
@@ -17,10 +17,8 @@ interface MarketplaceFeedLegacyProps {
 }
 
 export default function MarketplaceFeedLegacy({ onRefreshWallet }: MarketplaceFeedLegacyProps) {
-  const account = useCurrentAccount();
-  const suiClient = useSuiClient();
+  const { address, keypair, suiClient } = useAuth();
   const queryClient = useQueryClient();
-  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const toast = useToast();
 
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
@@ -30,9 +28,9 @@ export default function MarketplaceFeedLegacy({ onRefreshWallet }: MarketplaceFe
 
   // ─── Real chain balance ─────────────────────────────────────
   const balanceQuery = useQuery({
-    queryKey: ['wallet-balance', account?.address],
-    queryFn: () => suiClient.getBalance({ owner: account!.address! }),
-    enabled: Boolean(account?.address),
+    queryKey: ['wallet-balance', address],
+    queryFn: () => suiClient.getBalance({ owner: address! }),
+    enabled: Boolean(address),
     refetchInterval: 15000,
   });
   const realBalance = balanceQuery.data ? Number(balanceQuery.data.totalBalance) / 1_000_000_000 : null;
@@ -80,10 +78,13 @@ export default function MarketplaceFeedLegacy({ onRefreshWallet }: MarketplaceFe
   });
 
   const buyWithWallet = async (listing: MergedListing) => {
-    if (!account) throw new Error('Connect a Sui wallet first.');
-    const res = await signAndExecute({
-      transaction: buildPurchaseDatasetTx(listing.id, listing.priceMist),
-      account,
+    if (!address || !keypair) throw new Error('Connect a Sui wallet first.');
+    const tx = buildPurchaseDatasetTx(listing.id, listing.priceMist);
+    const builtTx = await tx.build({ client: suiClient });
+    const signedTx = await keypair.signTransaction(builtTx);
+    const res = await suiClient.executeTransactionBlock({
+      transactionBlock: signedTx.bytes,
+      signature: signedTx.signature,
     });
     toast.success(`Purchase submitted! Digest: ${res.digest.slice(0, 10)}...`);
     await queryClient.invalidateQueries({ queryKey: ['chain-listings'] });
@@ -137,7 +138,7 @@ export default function MarketplaceFeedLegacy({ onRefreshWallet }: MarketplaceFe
             CONNECTED WALLET BALANCE
           </span>
           <span className="block font-mono text-xs font-black text-emerald-800 mt-1">
-            {realBalance !== null ? `${realBalance.toFixed(2)} SUI` : account ? 'Loading...' : 'Not connected'}
+            {realBalance !== null ? `${realBalance.toFixed(2)} SUI` : address ? 'Loading...' : 'Not connected'}
           </span>
         </div>
       </div>
@@ -252,14 +253,14 @@ export default function MarketplaceFeedLegacy({ onRefreshWallet }: MarketplaceFe
                   {/* Buy for Agent */}
                   <button
                     onClick={() => {
-                      if (!account) {
+                      if (!address) {
                         toast.error('Connect your Sui wallet first to buy datasets.');
                         return;
                       }
                       backendPurchase.mutate(listing.id);
                     }}
-                    disabled={!account || (backendPurchase.isPending && purchasingId === listing.id)}
-                    title={!account ? 'Connect your Sui wallet to purchase datasets for your agent' : undefined}
+                    disabled={!address || (backendPurchase.isPending && purchasingId === listing.id)}
+                    title={!address ? 'Connect your Sui wallet to purchase datasets for your agent' : undefined}
                     className="flex-1 sm:flex-none bg-white border-2 border-[#111312] hover:bg-[#EAEFEC] text-[#111312] px-4 py-2.5 font-mono text-[10px] font-extrabold uppercase tracking-wider cursor-pointer select-none transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     {purchasingId === listing.id && backendPurchase.isPending ? (
@@ -287,9 +288,9 @@ export default function MarketplaceFeedLegacy({ onRefreshWallet }: MarketplaceFe
                         setWalletBuyingId(null);
                       }
                     }}
-                    disabled={!account || !listing.chainSource || walletBuyingId === listing.id}
+                    disabled={!address || !listing.chainSource || walletBuyingId === listing.id}
                     className="flex-1 sm:flex-none bg-[#111312] hover:bg-white text-white hover:text-[#111312] border-2 border-[#111312] px-4 py-2.5 font-mono text-[10px] font-extrabold uppercase tracking-wider cursor-pointer select-none transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    title={!account ? 'Connect a Sui wallet' : !listing.chainSource ? 'Only available for on-chain listings' : undefined}
+                    title={!address ? 'Connect a Sui wallet' : !listing.chainSource ? 'Only available for on-chain listings' : undefined}
                   >
                     {walletBuyingId === listing.id ? (
                       <>

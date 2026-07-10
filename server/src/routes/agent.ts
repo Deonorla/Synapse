@@ -6,11 +6,12 @@ export const agentRouter = Router();
 
 agentRouter.post('/register', async (req, res) => {
   const ownerAddress = req.body.ownerAddress || req.body.ownerPublicKey;
-  if (!ownerAddress) {
-    return res.status(400).json({ error: 'ownerAddress is required' });
+  const googleUserId = req.body.googleUserId;
+  if (!ownerAddress && !googleUserId) {
+    return res.status(400).json({ error: 'ownerAddress or googleUserId is required' });
   }
   try {
-    const result = await registerAgent({ ownerPublicKey: ownerAddress });
+    const result = await registerAgent({ ownerPublicKey: ownerAddress || googleUserId, googleUserId });
     res.json({ message: 'Agent registered successfully', ownerAddress, ...result });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
